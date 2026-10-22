@@ -11,16 +11,6 @@ npm run dev
 
 开发服务默认在 `http://127.0.0.1:4179`。
 
-## GitHub Pages
-
-Pages 只能打开构建后的静态文件，不能直接打开这份源码。`index.html` 里的 `/src/main.tsx` 要靠本地 Vite 编译，浏览器访问 Pages 时会 404，页面就是空白。
-
-把整个项目推到 GitHub 仓库后，在仓库 Settings → Pages 里把来源改成 GitHub Actions。`.github/workflows/pages.yml` 会执行 `npm run build`，再发布 `dist`。资源用相对路径，可以挂在 `https://<用户名>.github.io/<仓库名>/`。不要只上传根目录的 `index.html`。
-
-```bash
-npm test
-npm run build
-```
 
 ## 上传槽
 
@@ -49,4 +39,4 @@ npm run build
 
 线下：天水围，以及 2025 年 10 月及之前的新田。线上：官网、谷歌 SEM、验车网站、Facebook、电邮，以及 2025 年 11 月及之后的新田。
 
-人保一站式佣金率 15%。人保等效先认线上佣金率 20%，人保等效先认线下佣金率 15%。太平佣金率 25%。比例可在「口径」页修改。
+各产品佣金率可在「口径」页修改。
