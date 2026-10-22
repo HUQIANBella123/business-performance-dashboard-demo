@@ -552,7 +552,7 @@ export function buildView(bundle: Bundle, rules: RulesConfig, selected: string |
     renewal: {
       rows: renewalRows,
       hasLists: bundle.rows.length > 0,
-      note: "应续保按车牌算一套：去年同月起保的成交车牌计 1。之后有更晚起保的成交即已续保，仍算在原产品。下一年改按新保单的起保月。表内从去年同月看到本月，并带上之后两个月。等效先认 2026 年应续保为 0。有名单的月份改用名单。",
+      note: "应续保按车牌算一套：去年同月起保的成交车牌计 1。之后有更晚起保的成交即已续保，仍算在原产品。下一年改按新保单的起保月。表内从去年同月看到本月，并带上之后两个月。有名单的月份改用名单。没有名单时，等效先认用表内该产品的应续保、已续保、未续保；表里没有这三行时记 0。",
     },
     media,
     mediaTrend,
@@ -725,7 +725,7 @@ function renewalWindow(bundle: Bundle, cases: CaseRecord[], month: string): Rene
           renewed: 0,
           open: 0,
           rate: null,
-          source: cursor.startsWith("2026") ? "今年1月底上线，应续保为 0" : "上线前没有应续保",
+          source: "表内未单列，记 0",
           mark,
         })
       } else {
@@ -752,6 +752,7 @@ function narrativeInput(args: {
   const spend = (month: string, key: "semCost" | "fbCost") => args.mediaTrend.find((item) => item.month === month)?.[key] ?? null
   const card = (name: string, label: string) => args.media.find((item) => item.name.includes(name))?.metrics.find((item) => item.label === label)?.value ?? null
   const selected = args.renewalRows.find((row) => row.month === args.month && row.product === "一站式")
+  const equivalent = args.renewalRows.find((row) => row.month === args.month && row.product === "等效先认")
   const upcoming = args.renewalRows.filter((row) => row.mark === "随后" && row.product === "一站式")
   const firstSocial = args.social
     .flatMap((block) => block.metrics.filter((metric) => !metric.rate && metric.value !== null).map((metric) => ({ block: block.title, metric })))
@@ -787,6 +788,9 @@ function narrativeInput(args: {
     renewalDue: selected?.due ?? null,
     renewalRenewed: selected?.renewed ?? null,
     renewalOpen: selected?.open ?? null,
+    equivalentDue: equivalent?.due ?? null,
+    equivalentRenewed: equivalent?.renewed ?? null,
+    equivalentOpen: equivalent?.open ?? null,
     nextRenewal: upcoming.length
       ? upcoming.map((row) => `${monthLabel(row.month)}应续保 ${fmtInt(row.due)}、已续保 ${fmtInt(row.renewed)}、未续保 ${fmtInt(row.open)}`).join("；")
       : null,

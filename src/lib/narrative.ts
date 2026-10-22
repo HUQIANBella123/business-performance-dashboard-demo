@@ -25,6 +25,9 @@ export type NarrativeInput = {
   renewalDue: number | null
   renewalRenewed: number | null
   renewalOpen: number | null
+  equivalentDue: number | null
+  equivalentRenewed: number | null
+  equivalentOpen: number | null
   nextRenewal: string | null
   semCost: number | null
   fbCost: number | null
@@ -73,14 +76,18 @@ export function standoutLine(input: NarrativeInput): string {
   if (!found.length) return "本月环比和同比都没有超过两成的起伏。"
   const listed = found.map((item) => `${item.label}${item.kind}${pctText(item.delta)}`).join("，")
   const lead = found[0]
+  const downs = found.filter((item) => item.delta < 0).length
+  const ups = found.length - downs
   const read =
     lead.label.includes("续保") && lead.delta < 0
       ? "续保是这个月最需要盯住的部分。"
       : lead.label.includes("验车") && lead.delta > 0 && (rel(input.deals, input.prev.deals) ?? 0) <= 0
         ? "验车在增加，成交没有同步上去。"
-        : lead.delta < 0
-          ? "这几项回落需要在下月的动作里单独看原因。"
-          : "这几项走强，下月适合沿同一路径加量。"
+        : ups > 0 && downs > 0
+          ? "涨跌都有，下月分开看原因。"
+          : lead.delta < 0
+            ? "这几项回落需要在下月的动作里单独看原因。"
+            : "这几项走强，下月适合沿同一路径加量。"
   return `变化比较突出的是${listed}。${read}`
 }
 
@@ -118,11 +125,25 @@ export function channelNarrative(input: NarrativeInput): string {
   const onlineMom = rel(input.online, input.prev.online)
   const offlineMom = rel(input.offline, input.prev.offline)
   const top = input.topChannel ? `单量最高的渠道是${input.topChannel}。` : "这个月还没有渠道拆分。"
+  const mix =
+    input.online === null && input.offline === null
+      ? "这个月还没有线上和线下成交。"
+      : (input.offline ?? 0) > (input.online ?? 0)
+        ? "线下成交多于线上。"
+        : (input.online ?? 0) > (input.offline ?? 0)
+          ? "线上成交多于线下。"
+          : "线上和线下成交相同。"
+  const next =
+    onlineMom !== null && offlineMom !== null && onlineMom < offlineMom
+      ? "下月可以检查线上申请到成交的衔接。"
+      : onlineMom !== null && onlineMom > 0
+        ? "下月可以继续放大已经走强的线上渠道。"
+        : "下月分别看线上和线下从申请到成交的衔接。"
   return [
     `${monthLabel(input.month)}线上成交 ${fmtInt(input.online)}，线下成交 ${fmtInt(input.offline)}。${top}`,
     `线上环比 ${onlineMom === null ? "—" : pctText(onlineMom)}，同比 ${rel(input.online, input.yoy.online) === null ? "—" : pctText(rel(input.online, input.yoy.online) as number)}。`,
     `线下环比 ${offlineMom === null ? "—" : pctText(offlineMom)}，同比 ${rel(input.offline, input.yoy.offline) === null ? "—" : pctText(rel(input.offline, input.yoy.offline) as number)}。`,
-    `整体仍然是线下贡献更多成交。下月${(onlineMom ?? 0) < (offlineMom ?? 0) ? "可以检查线上申请到成交的衔接" : "可以继续放大已经走强的线上渠道"}。`,
+    `${mix}${next}`,
   ].join("")
 }
 
@@ -148,15 +169,30 @@ export function planNarrative(input: NarrativeInput): string {
   ].join("")
 }
 
+function cohortText(due: number | null, renewed: number | null, open: number | null): string {
+  const rate = due ? (renewed ?? 0) / due : null
+  return `应续保 ${fmtInt(due)}，已续保 ${fmtInt(renewed)}，未续保 ${fmtInt(open)}，续保率 ${fmtPct(rate)}`
+}
+
 export function renewalNarrative(input: NarrativeInput): string {
-  const rate = input.renewalDue ? (input.renewalRenewed ?? 0) / input.renewalDue : null
-  const window = input.nextRenewal ? `本月之后两个月里，${input.nextRenewal}。` : ""
+  const ahead = input.nextRenewal ? `本月之后两个月里，${input.nextRenewal}。` : ""
   return [
-    `${monthLabel(input.month)}一站式应续保 ${fmtInt(input.renewalDue)}，已续保 ${fmtInt(input.renewalRenewed)}，未续保 ${fmtInt(input.renewalOpen)}，续保率 ${fmtPct(rate)}。`,
-    "等效先认在今年 1 月底才上线，2026 年各月应续保为 0。",
-    window,
+    `${monthLabel(input.month)}一站式${cohortText(input.renewalDue, input.renewalRenewed, input.renewalOpen)}。`,
+    `等效先认${cohortText(input.equivalentDue, input.equivalentRenewed, input.equivalentOpen)}。`,
+    ahead,
     "下月除了当月未续保，还要提前联系后面两个月到期的车牌。",
   ].join("")
+}
+
+export function resolveSummary(stored: string | null, generated: string): string {
+  if (!stored) return generated
+  try {
+    const saved = JSON.parse(stored) as { text?: unknown; base?: unknown }
+    if (saved.base === generated && typeof saved.text === "string") return saved.text
+  } catch {
+    // Plain text left by an older build belongs to the previous dataset.
+  }
+  return generated
 }
 
 export function mediaNarrative(input: NarrativeInput): string {

@@ -10,6 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts"
+import { resolveSummary } from "../lib/narrative"
 import { SLOTS } from "../lib/slots"
 import { fmtHkd, fmtInt, fmtPct, monthLabel } from "../lib/months"
 import type { RulesConfig } from "../lib/rules"
@@ -709,11 +710,25 @@ function MonthPicker({ month, months, onConfirm }: { month: string; months: stri
   )
 }
 
+const NOTE_PREFIX = "ctia-board-note:"
+const NOTE_VERSION = "ctia-board-note:v2:"
+
+function dropLegacyBoardNotes() {
+  const drop: string[] = []
+  for (let index = 0; index < window.localStorage.length; index += 1) {
+    const key = window.localStorage.key(index)
+    if (key?.startsWith(NOTE_PREFIX) && !key.startsWith(NOTE_VERSION)) drop.push(key)
+  }
+  for (const key of drop) window.localStorage.removeItem(key)
+}
+
+if (typeof window !== "undefined") dropLegacyBoardNotes()
+
 function Summary({ month, tab, text }: { month: string; tab: string; text: string }) {
-  const storageKey = `ctia-board-note:${tab}:${month}`
-  const stored = window.localStorage.getItem(storageKey)
-  const [state, setState] = useState({ key: storageKey, value: stored ?? text })
-  if (state.key !== storageKey) setState({ key: storageKey, value: window.localStorage.getItem(storageKey) ?? text })
+  const storageKey = `${NOTE_VERSION}${tab}:${month}`
+  const read = (generated: string) => resolveSummary(window.localStorage.getItem(storageKey), generated)
+  const [state, setState] = useState({ key: storageKey, base: text, value: read(text) })
+  if (state.key !== storageKey || state.base !== text) setState({ key: storageKey, base: text, value: read(text) })
   return (
     <textarea
       aria-label={`${tab}总结`}
@@ -721,8 +736,8 @@ function Summary({ month, tab, text }: { month: string; tab: string; text: strin
       value={state.value}
       onChange={(event) => {
         const value = event.target.value
-        window.localStorage.setItem(storageKey, value)
-        setState({ key: storageKey, value })
+        window.localStorage.setItem(storageKey, JSON.stringify({ text: value, base: text }))
+        setState({ key: storageKey, base: text, value })
       }}
     />
   )
