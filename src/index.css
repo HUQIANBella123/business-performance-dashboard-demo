@@ -22,6 +22,20 @@ body {
   font-family: var(--font-sans);
 }
 
+.screen-card {
+  border: 1px solid #e4d8c8;
+  border-radius: 1rem;
+  background:
+    linear-gradient(180deg, rgba(165, 107, 60, 0.06), transparent 2.5rem),
+    #fbf8f3;
+  box-shadow: 0 10px 28px rgba(68, 48, 24, 0.06);
+}
+
+select option {
+  color: #1c2430;
+  background: #fbf8f3;
+}
+
 button,
 input,
 select {

@@ -384,8 +384,22 @@ describe("dashboard view", () => {
     expect(card(view, "nbDaily")?.value).toBeCloseTo(440 / 31, 4)
     expect(card(view, "rnDaily")?.value).toBeCloseTo(183 / 31, 4)
     expect(card(view, "rnHkd")?.value).toBeGreaterThan(0)
+    expect(report.months["2026-07"].oneStopDue).toBe(400)
+    expect(report.months["2026-07"].oneStopRenewed).toBe(197)
+    expect(report.months["2026-07"].oneStopOpen).toBe(203)
+    expect(report.months["2026-07"].oneStopRate).toBeCloseTo(0.4925, 4)
     expect(card(view, "m0-due")?.label).toBe("本月应续保量")
     expect(card(view, "m0-due")?.value).toBe(400)
+    expect(card(view, "m0-renewed")?.value).toBe(197)
+    expect(card(view, "m0-open")?.value).toBe(203)
+    expect(view.renewal.rows.find((row) => row.month === "2026-07" && row.product === "一站式")).toMatchObject({
+      due: 400,
+      renewed: 197,
+      open: 203,
+      rate: 0.4925,
+      source: "销售报表",
+    })
+    expect(view.narratives.renewal).toContain("一站式应续保 400，已续保 197，未续保 203，续保率 49.3%")
     expect(card(view, "m1-due")?.label).toBe("26年8月应续保量")
     expect(card(view, "m1-due")?.value).toBe(420)
     expect(card(view, "m2-open")?.label).toBe("26年9月应续保未续保量")
@@ -398,6 +412,10 @@ describe("dashboard view", () => {
       mark: "随后",
     })
     expect(view.renewal.rows.find((row) => row.month === "2026-07" && row.product === "等效先认")?.due).toBe(0)
+    expect(view.renewal.rows.find((row) => row.month === "2026-07" && row.product === "等效先认")?.source).toBe("表内未单列，记 0")
+    expect(view.narratives.renewal).toContain("等效先认应续保 0，已续保 0，未续保 0")
+    expect(view.narratives.renewal).not.toContain("1 月底")
+    expect(view.narratives.channels).not.toContain("整体仍然是线下贡献更多成交")
     expect(view.plans.fromLists).toBe(false)
     expect(view.plans.sections.some((section) => section.scope === "新增")).toBe(false)
     expect(view.plans.sections.find((section) => section.scope === "整体")?.rows.some((row) => row.value > 0)).toBe(true)

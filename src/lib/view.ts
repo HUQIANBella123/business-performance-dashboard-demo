@@ -17,7 +17,14 @@ import type { SocialBlock } from "./parseSocial"
 import type { SupplementMonth } from "./parseSupplement"
 import { commissionRate, type RulesConfig } from "./rules"
 
-export type FileChip = { slot: string; name: string; detail: string }
+export type FileChip = {
+  slot: string
+  name: string
+  filename: string
+  detail: string
+  months: string[]
+  bytes?: ArrayBuffer
+}
 
 export type Bundle = {
   rows: RawRow[]
@@ -710,7 +717,7 @@ function renewalWindow(bundle: Bundle, cases: CaseRecord[], month: string): Rene
           due,
           renewed,
           open,
-          rate: due ? (renewed ?? 0) / due : null,
+          rate: report.oneStopRate ?? (due ? (renewed ?? 0) / due : null),
           source: "销售报表",
           mark,
         })

@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx"
-import { asNumber, headerToMonth } from "./months"
+import { asNumber, headerToMonth, monthFromUnknown } from "./months"
 import { normalizeProduct } from "./rules"
 
 export type ChannelSlice = {
@@ -54,6 +54,7 @@ export type ReportMonth = {
   oneStopDue: number | null
   oneStopRenewed: number | null
   oneStopOpen: number | null
+  oneStopRate: number | null
   sem: Record<string, number>
   fb: Record<string, number>
   rnCountAnomaly: boolean
@@ -113,6 +114,7 @@ function blank(month: string): Draft {
     oneStopDue: null,
     oneStopRenewed: null,
     oneStopOpen: null,
+    oneStopRate: null,
     sem: {},
     fb: {},
   }
@@ -129,6 +131,14 @@ function planScopeOf(name: string): PlanScope | null {
   if (/taiping/i.test(name)) return "太平"
   if (/picc/i.test(name)) return "人保"
   return null
+}
+
+function columnMonth(cell: unknown): string | null {
+  if (cell instanceof Date || typeof cell === "number") {
+    const dated = monthFromUnknown(cell)
+    if (dated) return dated
+  }
+  return headerToMonth(String(cell ?? ""))
 }
 
 function rawLabel(row: unknown[]): string {
@@ -195,12 +205,12 @@ export function parseSalesReport(buffer: ArrayBuffer): { months: Record<string, 
   const sheet = workbook.Sheets["港车北上"]
   if (!sheet) return { months: {}, warnings: ["销售报表里没有「港车北上」工作表"] }
   const matrix = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null, raw: true }) as unknown[][]
-  const headerRow = matrix.find((row) => row.some((cell) => headerToMonth(String(cell ?? "")) === "2024-01"))
+  const headerRow = matrix.find((row) => row.some((cell) => columnMonth(cell) === "2024-01"))
   if (!headerRow) return { months: {}, warnings: ["销售报表没有月份表头"] }
 
   const columns: { index: number; month: string }[] = []
   headerRow.forEach((cell, index) => {
-    const month = headerToMonth(String(cell ?? ""))
+    const month = columnMonth(cell)
     if (month) columns.push({ index, month })
   })
   const drafts = new Map<string, Draft>(columns.map((column) => [column.month, blank(column.month)]))
@@ -237,6 +247,10 @@ export function parseSalesReport(buffer: ArrayBuffer): { months: Record<string, 
     }
     if (name === "一站式未續保" || name === "一站式未续保") {
       write(row, (draft, value) => { draft.oneStopOpen = value })
+      continue
+    }
+    if (lower === "renewal rate") {
+      write(row, (draft, value) => { draft.oneStopRate = value })
       continue
     }
     if (name.startsWith("Product Type-")) {

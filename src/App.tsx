@@ -16,14 +16,16 @@ const SAMPLES = [
   { slot: "social", path: `${import.meta.env.BASE_URL}samples/ctia-social-monthly.xlsx`, name: "小红书及微信月报（示例）" },
 ]
 
-async function stageFile(slot: string, file: File): Promise<StagedFile> {
+async function stageFile(slot: string, file: File, label = file.name): Promise<StagedFile> {
   const definition = SLOTS.find((item) => item.id === slot)
   const id = `${slot}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
   const buffer = await file.arrayBuffer()
   const base: StagedFile = {
     id,
     slot,
-    name: file.name,
+    name: label,
+    filename: file.name,
+    bytes: buffer,
     summary: "没有读到内容",
     warnings: [],
     metrics: {},
@@ -135,8 +137,9 @@ export default function App() {
           const response = await fetch(sample.path)
           if (!response.ok) throw new Error(sample.path)
           if (cancelled) return
-          const file = new File([await response.arrayBuffer()], sample.name)
-          const stagedFile = await stageFile(sample.slot, file)
+          const filename = sample.path.split("/").pop() ?? sample.name
+          const file = new File([await response.arrayBuffer()], filename)
+          const stagedFile = await stageFile(sample.slot, file, sample.name)
           current = applyStaged(current, [stagedFile], [], {})
         }
         if (cancelled) return

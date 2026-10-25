@@ -9,6 +9,8 @@ export type StagedFile = {
   id: string
   slot: string
   name: string
+  filename: string
+  bytes?: ArrayBuffer
   summary: string
   warnings: string[]
   rows?: RawRow[]
@@ -259,6 +261,28 @@ function rowKey(row: RawRow) {
   return `${row.slot}|${row.serial}|${row.orderId}|${row.status}|${row.month}|${row.plate}|${row.biz}`
 }
 
+export function coveredMonths(item: StagedFile): string[] {
+  const months = new Set<string>()
+  for (const [month, row] of Object.entries(item.report ?? {})) {
+    if (row.oneStopDue !== null || row.nbSales !== null || row.totalSales !== null || row.premiumTotal !== null || row.motor !== null) {
+      months.add(month)
+    }
+  }
+  for (const [month, values] of Object.entries(item.supplement ?? {})) {
+    if (Object.keys(values).length) months.add(month)
+  }
+  for (const block of item.social ?? []) {
+    for (const series of Object.values(block.series)) {
+      for (const [month, value] of Object.entries(series)) {
+        if (value !== null && value !== undefined) months.add(month)
+      }
+    }
+  }
+  for (const row of item.rows ?? []) if (row.month) months.add(row.month)
+  if (item.actionLine) months.add("*")
+  return [...months].sort()
+}
+
 export function applyStaged(
   base: AppliedBundle,
   staged: StagedFile[],
@@ -291,7 +315,14 @@ export function applyStaged(
     next.warnings.push(...item.warnings)
     next.files = [
       ...next.files.filter((file) => !(file.slot === item.slot && file.name === item.name)),
-      { slot: item.slot, name: item.name, detail: item.summary },
+      {
+        slot: item.slot,
+        name: item.name,
+        filename: item.filename,
+        detail: item.summary,
+        months: coveredMonths(item),
+        bytes: item.bytes,
+      },
     ]
   }
   const actionLines = staged.map((item) => item.actionLine).filter((line): line is string => Boolean(line))
