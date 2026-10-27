@@ -17,6 +17,18 @@ const SAMPLES = [
     name: "CTIA SalesReport_B2C.xlsx",
     filename: "CTIA_SalesReport_B2C.xlsx",
   },
+  {
+    slot: "supplement",
+    path: `${import.meta.env.BASE_URL}samples/ctia-bpr-supplement.xlsx`,
+    name: "CTIA Business Performance Review其他数据补充.xlsx",
+    filename: "CTIA_Business_Performance_Review其他数据补充.xlsx",
+  },
+  {
+    slot: "social",
+    path: `${import.meta.env.BASE_URL}samples/ctia-social-monthly.xlsx`,
+    name: "CTIA B2C小红书及微信Monthly Report.xlsx",
+    filename: "CTIA_B2C小红书及微信Monthly_Report.xlsx",
+  },
 ]
 
 async function stageFile(slot: string, file: File, label = file.name): Promise<StagedFile> {

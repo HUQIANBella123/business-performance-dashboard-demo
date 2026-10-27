@@ -22,46 +22,46 @@ describe("sales report", () => {
   const mar = parsed.months["2026-03"]
 
   it("reads February operating figures", () => {
-    expect(feb.motor).toBe(2302)
-    expect(feb.inquiries).toBe(1183)
-    expect(feb.nbApplication).toBe(320)
-    expect(feb.nbApplicationByInsurer["太平"]).toBe(69)
-    expect(feb.nbApplicationByInsurer["人保"]).toBe(251)
-    expect(feb.rnApplication).toBe(133)
-    expect(feb.rnApplicationByInsurer["太平"]).toBe(50)
-    expect(feb.nbSales).toBe(314)
-    expect(feb.rnSales).toBe(121)
-    expect(feb.onlineNb).toBe(79)
-    expect(feb.offlineNb).toBe(235)
-    expect(feb.nbCountByInsurer["太平"]).toBe(66)
-    expect(feb.nbCountByInsurer["人保"]).toBe(248)
-    expect(feb.premiumNb).toBeCloseTo(595586.5, 1)
+    expect(feb.motor).toBe(460)
+    expect(feb.inquiries).toBe(237)
+    expect(feb.nbApplication).toBe(64)
+    expect(feb.nbApplicationByInsurer["太平"]).toBe(14)
+    expect(feb.nbApplicationByInsurer["人保"]).toBe(50)
+    expect(feb.rnApplication).toBe(27)
+    expect(feb.rnApplicationByInsurer["太平"]).toBe(10)
+    expect(feb.nbSales).toBe(60)
+    expect(feb.rnSales).toBe(31)
+    expect(feb.onlineNb).toBe(14)
+    expect(feb.offlineNb).toBe(46)
+    expect(feb.nbCountByInsurer["太平"]).toBe(12)
+    expect(feb.nbCountByInsurer["人保"]).toBe(48)
+    expect(feb.premiumNb).toBe(119116)
     expect(feb.rnCountAnomaly).toBe(false)
-    expect(feb.rnCountByInsurer["太平"]).toBe(44)
-    expect(feb.rnCountByInsurer["人保"]).toBe(77)
-    expect(feb.plans.find((item) => item.scope === "整体" && item.label.includes("300万") && item.label.includes("1万"))?.count).toBe(63)
-    expect(feb.plans.filter((item) => item.scope === "太平").reduce((sum, item) => sum + item.count, 0)).toBe(66)
+    expect(feb.rnCountByInsurer["太平"]).toBe(8)
+    expect(feb.rnCountByInsurer["人保"]).toBe(23)
+    expect(feb.plans.find((item) => item.scope === "整体" && item.label.includes("300万") && item.label.includes("1万"))?.count).toBe(13)
+    expect(feb.plans.filter((item) => item.scope === "太平").reduce((sum, item) => sum + item.count, 0)).toBe(13)
   })
 
   it("ignores formula zeros in months that have not been closed", () => {
-    expect(parsed.months["2026-07"].nbSales).toBe(440)
+    expect(parsed.months["2026-07"].nbSales).toBe(87)
     expect(parsed.months["2026-07"].workingDays).toBe(23)
     expect(parsed.months["2026-09"].nbSales).toBeNull()
-    expect(parsed.months["2026-09"].motor).toBe(1600)
-    expect(parsed.months["2026-09"].oneStopDue).toBe(380)
-    expect(parsed.months["2026-09"].oneStopRenewed).toBe(3)
-    expect(parsed.months["2026-09"].oneStopOpen).toBe(377)
-    expect(parsed.months["2026-03"].nbSales).toBe(443)
+    expect(parsed.months["2026-09"].motor).toBeNull()
+    expect(parsed.months["2026-09"].oneStopDue).toBe(76)
+    expect(parsed.months["2026-09"].oneStopRenewed).toBe(1)
+    expect(parsed.months["2026-09"].oneStopOpen).toBe(75)
+    expect(parsed.months["2026-03"].nbSales).toBe(88)
     expect(parsed.months["2026-03"].rnCountAnomaly).toBe(false)
   })
 
   it("reads March renewal counts from the insurer rows", () => {
-    expect(mar.nbApplication).toBe(503)
-    expect(mar.nbSales).toBe(443)
-    expect(mar.nbApplicationByInsurer["太平"]).toBe(156)
-    expect(mar.rnSales).toBe(195)
-    expect(mar.rnCountByInsurer["太平"]).toBe(49)
-    expect(mar.rnCountByInsurer["人保"]).toBe(146)
+    expect(mar.nbApplication).toBe(100)
+    expect(mar.nbSales).toBe(88)
+    expect(mar.nbApplicationByInsurer["太平"]).toBe(31)
+    expect(mar.rnSales).toBe(67)
+    expect(mar.rnCountByInsurer["太平"]).toBe(10)
+    expect(mar.rnCountByInsurer["人保"]).toBe(57)
     expect(mar.premiumRn).toBeGreaterThan(0)
     expect(mar.rnCountAnomaly).toBe(false)
   })
@@ -70,32 +70,32 @@ describe("sales report", () => {
     const taipingOnline = feb.productGroups.find(
       (item) => item.insurer === "太平" && item.product === "等效先认" && item.group === "online",
     )
-    expect(taipingOnline?.count).toBe(65)
+    expect(taipingOnline?.count).toBe(12)
     const piccOffline = feb.productGroups.find(
       (item) => item.insurer === "人保" && item.product === "一站式" && item.group === "offline",
     )
-    expect(piccOffline?.count).toBe(217)
+    expect(piccOffline?.count).toBe(43)
   })
 })
 
 describe("supplement and social", () => {
   it("reads motor, renewal base and SEM", () => {
     const parsed = parseSupplement(bufferOf(supplement))
-    expect(parsed.months["2026-02"].motor).toBe(2302)
-    expect(parsed.months["2026-02"].due_onestop).toBe(459)
-    expect(parsed.months["2026-02"].renewed_onestop).toBe(237)
-    expect(parsed.months["2026-02"].sem_cost).toBeCloseTo(17377.14, 2)
-    expect(parsed.months["2026-02"].fb_clicks).toBe(1480)
-    expect(parsed.months["2026-09"].motor).toBe(1600)
+    expect(parsed.months["2026-02"].motor).toBe(460)
+    expect(parsed.months["2026-02"].due_onestop).toBe(91)
+    expect(parsed.months["2026-02"].renewed_onestop).toBe(47)
+    expect(parsed.months["2026-02"].sem_cost).toBe(3475)
+    expect(parsed.months["2026-02"].fb_clicks).toBe(296)
+    expect(parsed.months["2026-09"].motor).toBeUndefined()
   })
 
   it("reads Xiaohongshu and WeChat blocks", () => {
     const parsed = parseSocial(bufferOf(social))
     const official = parsed.blocks.find((block) => block.title.includes("官方"))
     const wechat = parsed.blocks.find((block) => block.title.includes("微信"))
-    expect(official?.series["發送篇數"]["2026-02"]).toBe(4)
-    expect(wechat?.series["發送篇數"]["2026-02"]).toBe(3)
-    expect(wechat?.series["閱讀量"]["2026-02"]).toBe(1548)
+    expect(official?.series["發送篇數"]["2026-02"]).toBe(1)
+    expect(wechat?.series["發送篇數"]["2026-02"]).toBe(1)
+    expect(wechat?.series["閱讀量"]["2026-02"]).toBe(310)
   })
 })
 
@@ -192,10 +192,10 @@ describe("case counting", () => {
     expect(built.mismatchCount).toBe(1)
     expect(built.cases[0].cny).toBe(950)
     expect(built.cases[0].channelGroup).toBe("online")
-    expect(built.cases[0].commission).toBeCloseTo(1054.5 * 0.25, 4)
+    expect(built.cases[0].commission).toBeCloseTo(1054.5 * DEFAULT_RULES.taipingRate, 4)
   })
 
-  it("uses 20% online and 15% offline for PICC equivalent plans", () => {
+  it("uses the demo rates for PICC equivalent plans", () => {
     const built = buildCases(
       [
         row({
@@ -219,8 +219,8 @@ describe("case counting", () => {
     )
     const online = built.cases.find((item) => item.plate === "ON1")
     const offline = built.cases.find((item) => item.plate === "OFF1")
-    expect(online?.commission).toBeCloseTo(1100 * 0.2, 4)
-    expect(offline?.commission).toBeCloseTo(1100 * 0.15, 4)
+    expect(online?.commission).toBeCloseTo(1100 * DEFAULT_RULES.equivalentOnlineRate, 4)
+    expect(offline?.commission).toBeCloseTo(1100 * DEFAULT_RULES.equivalentOfflineRate, 4)
     expect(online?.commissionAssumed).toBe(false)
     expect(offline?.commissionAssumed).toBe(false)
   })
@@ -355,12 +355,12 @@ describe("dashboard view", () => {
       DEFAULT_RULES,
       "2026-02",
     )
-    expect(card(view, "deals")?.value).toBe(435)
-    expect(card(view, "apps")?.value).toBe(453)
+    expect(card(view, "deals")?.value).toBe(91)
+    expect(card(view, "apps")?.value).toBe(91)
     expect(card(view, "motor")?.source).toBe("补充表")
-    expect(card(view, "hkd")?.value).toBeCloseTo(993058.5, 0)
-    expect(card(view, "nbOnline")?.value).toBe(79)
-    expect(card(view, "nbOffline")?.value).toBe(235)
+    expect(card(view, "hkd")?.value).toBe(198610)
+    expect(card(view, "nbOnline")?.value).toBe(14)
+    expect(card(view, "nbOffline")?.value).toBe(46)
     expect(view.sections.map((section) => section.title)).toEqual(["整体", "新增", "续保"])
   })
 
@@ -373,42 +373,42 @@ describe("dashboard view", () => {
       null,
     )
     expect(view.month).toBe("2026-07")
-    expect(card(view, "deals")?.value).toBe(623)
-    expect(card(view, "sa")?.value).toBeCloseTo(440 / 508, 4)
+    expect(card(view, "deals")?.value).toBe(134)
+    expect(card(view, "sa")?.value).toBeCloseTo(87 / 101, 4)
     expect(card(view, "sm")?.value).not.toBeNull()
     expect(card(view, "rnsa")?.value).not.toBeNull()
     expect(card(view, "commission")?.value).toBeGreaterThan(0)
     expect(card(view, "nbCommission")?.value).toBeGreaterThan(0)
     expect(card(view, "rnCommission")?.value).toBeGreaterThan(0)
-    expect(card(view, "rn")?.value).toBe(183)
-    expect(card(view, "nbDaily")?.value).toBeCloseTo(440 / 31, 4)
-    expect(card(view, "rnDaily")?.value).toBeCloseTo(183 / 31, 4)
+    expect(card(view, "rn")?.value).toBe(47)
+    expect(card(view, "nbDaily")?.value).toBeCloseTo(87 / 31, 4)
+    expect(card(view, "rnDaily")?.value).toBeCloseTo(47 / 31, 4)
     expect(card(view, "rnHkd")?.value).toBeGreaterThan(0)
-    expect(report.months["2026-07"].oneStopDue).toBe(400)
-    expect(report.months["2026-07"].oneStopRenewed).toBe(197)
-    expect(report.months["2026-07"].oneStopOpen).toBe(203)
-    expect(report.months["2026-07"].oneStopRate).toBeCloseTo(0.4925, 4)
+    expect(report.months["2026-07"].oneStopDue).toBe(80)
+    expect(report.months["2026-07"].oneStopRenewed).toBe(39)
+    expect(report.months["2026-07"].oneStopOpen).toBe(41)
+    expect(report.months["2026-07"].oneStopRate).toBeCloseTo(0.4875, 4)
     expect(card(view, "m0-due")?.label).toBe("本月应续保量")
-    expect(card(view, "m0-due")?.value).toBe(400)
-    expect(card(view, "m0-renewed")?.value).toBe(197)
-    expect(card(view, "m0-open")?.value).toBe(203)
+    expect(card(view, "m0-due")?.value).toBe(80)
+    expect(card(view, "m0-renewed")?.value).toBe(39)
+    expect(card(view, "m0-open")?.value).toBe(41)
     expect(view.renewal.rows.find((row) => row.month === "2026-07" && row.product === "一站式")).toMatchObject({
-      due: 400,
-      renewed: 197,
-      open: 203,
-      rate: 0.4925,
+      due: 80,
+      renewed: 39,
+      open: 41,
+      rate: 0.4875,
       source: "销售报表",
     })
-    expect(view.narratives.renewal).toContain("一站式应续保 400，已续保 197，未续保 203，续保率 49.3%")
+    expect(view.narratives.renewal).toContain("一站式应续保 80，已续保 39，未续保 41，续保率 48.8%")
     expect(card(view, "m1-due")?.label).toBe("26年8月应续保量")
-    expect(card(view, "m1-due")?.value).toBe(420)
+    expect(card(view, "m1-due")?.value).toBe(84)
     expect(card(view, "m2-open")?.label).toBe("26年9月应续保未续保量")
-    expect(card(view, "m2-open")?.value).toBe(377)
+    expect(card(view, "m2-open")?.value).toBe(75)
     expect(view.renewal.hasLists).toBe(false)
     expect(view.renewal.rows.find((row) => row.month === "2026-09" && row.product === "一站式")).toMatchObject({
-      due: 380,
-      renewed: 3,
-      open: 377,
+      due: 76,
+      renewed: 1,
+      open: 75,
       mark: "随后",
     })
     expect(view.renewal.rows.find((row) => row.month === "2026-07" && row.product === "等效先认")?.due).toBe(0)
