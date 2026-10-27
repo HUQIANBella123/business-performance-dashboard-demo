@@ -4,11 +4,11 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --host :: --port 4179 --strictPort",
+    "dev": "vite --host :: --port 4187 --strictPort",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "test": "vitest run",
-    "preview": "vite preview --host :: --port 4179 --strictPort"
+    "preview": "vite preview --host :: --port 4187 --strictPort"
   },
   "dependencies": {
     "echarts": "^5.6.0",

@@ -9,7 +9,7 @@ export default defineConfig({
   server: {
     // IPv6 wildcard. With bindv6only=0 this also accepts 127.0.0.1.
     host: "::",
-    port: 4179,
+    port: 4187,
     strictPort: true,
   },
   test: {

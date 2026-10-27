@@ -19,6 +19,7 @@ import {
 } from "./screenCharts"
 import { resolveSummary } from "../lib/narrative"
 import { downloadSource, openSourcePreview } from "../lib/sourcePreview"
+import { EDITION, EDITION_LABEL } from "../lib/edition"
 import { SLOTS } from "../lib/slots"
 import type { RulesConfig } from "../lib/rules"
 import type { Conflict, StagedFile } from "../lib/staging"
@@ -59,7 +60,10 @@ export function Board(props: Props) {
         <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 md:px-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-xs tracking-[0.28em] text-brass">CTIA · 决策大屏</p>
-            <h1 className="mt-1 text-3xl font-semibold tracking-tight text-pine md:text-4xl">港车北上业绩</h1>
+            <div className="mt-1 flex flex-wrap items-center gap-3">
+              <h1 className="text-3xl font-semibold tracking-tight text-pine md:text-4xl">港车北上业绩</h1>
+              <span className={`rounded-full px-2.5 py-1 text-xs font-semibold tracking-normal ${EDITION === "test" ? "bg-clay/15 text-clay" : "bg-pine/10 text-pine"}`}>{EDITION_LABEL}</span>
+            </div>
             <p className="mt-2 max-w-2xl text-sm text-muted">
               名单在浏览器里计算。统计月按创建时间。支付成功和已上传证明都算成交；同一车牌两者同时出现时只保留支付成功。
             </p>
