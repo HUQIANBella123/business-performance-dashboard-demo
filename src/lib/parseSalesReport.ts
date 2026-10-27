@@ -5,6 +5,7 @@ import { normalizeProduct } from "./rules"
 export type ChannelSlice = {
   insurer: string
   product: string
+  biz: "nb" | "rn"
   group: "online" | "offline"
   channel: string
   count: number | null
@@ -14,6 +15,7 @@ export type ChannelSlice = {
 export type ProductGroup = {
   insurer: string
   product: string
+  biz: "nb" | "rn"
   group: "online" | "offline"
   count: number | null
   premium: number | null
@@ -167,16 +169,17 @@ function touchSlice(
   draft: Draft,
   insurer: string,
   product: string,
+  biz: "nb" | "rn",
   group: "online" | "offline",
   channel: string,
   kind: "count" | "premium",
   value: number,
 ) {
   let slice = draft.slices.find(
-    (item) => item.insurer === insurer && item.product === product && item.channel === channel && item.group === group,
+    (item) => item.insurer === insurer && item.product === product && item.biz === biz && item.channel === channel && item.group === group,
   )
   if (!slice) {
-    slice = { insurer, product, group, channel, count: null, premium: null }
+    slice = { insurer, product, biz, group, channel, count: null, premium: null }
     draft.slices.push(slice)
   }
   slice[kind] = value
@@ -186,18 +189,29 @@ function touchGroup(
   draft: Draft,
   insurer: string,
   product: string,
+  biz: "nb" | "rn",
   group: "online" | "offline",
   kind: "count" | "premium",
   value: number,
 ) {
   let item = draft.productGroups.find(
-    (row) => row.insurer === insurer && row.product === product && row.group === group,
+    (row) => row.insurer === insurer && row.product === product && row.biz === biz && row.group === group,
   )
   if (!item) {
-    item = { insurer, product, group, count: null, premium: null }
+    item = { insurer, product, biz, group, count: null, premium: null }
     draft.productGroups.push(item)
   }
   item[kind] = value
+}
+
+function productHeader(name: string): { insurer: "太平" | "人保"; biz: "nb" | "rn" } | null {
+  const compact = name.replace(/\s+/g, "")
+  const match = compact.match(/^(Taiping|PICC)Product(?:-(NewSales|RN))?$/i)
+  if (!match) return null
+  return {
+    insurer: /picc/i.test(match[1]) ? "人保" : "太平",
+    biz: match[2]?.toLowerCase() === "rn" ? "rn" : "nb",
+  }
 }
 
 export function parseSalesReport(buffer: ArrayBuffer): { months: Record<string, ReportMonth>; warnings: string[] } {
@@ -217,7 +231,9 @@ export function parseSalesReport(buffer: ArrayBuffer): { months: Record<string, 
 
   let insurer: string | null = null
   let product: string | null = null
+  let productBiz: "nb" | "rn" = "nb"
   let section: "premium" | "count" | "skip" | "media" = "premium"
+  const rnProductCounts = new Set<string>()
   let media: "sem" | "fb" | null = null
   let applicationSide: "nb" | "rn" | null = null
   let planScope: PlanScope | null = null
@@ -273,6 +289,7 @@ export function parseSalesReport(buffer: ArrayBuffer): { months: Record<string, 
       section = "count"
       insurer = null
       product = null
+      productBiz = "nb"
       applicationSide = null
       continue
     }
@@ -379,14 +396,26 @@ export function parseSalesReport(buffer: ArrayBuffer): { months: Record<string, 
       }
       continue
     }
-    if (name === "Taiping Product" || name === "PICC Product") {
-      insurer = name.startsWith("Taiping") ? "太平" : "人保"
+    const header = productHeader(name)
+    if (header && (unit === "#" || unit === "$")) {
+      insurer = header.insurer
+      productBiz = header.biz
       product = null
       if (unit === "#") section = "count"
       if (unit === "$") section = "premium"
+      const who = header.insurer
+      const biz = header.biz
       write(row, (draft, value) => {
-        if (section === "premium") draft.nbPremiumByInsurer[insurer!] = value
-        if (section === "count") draft.nbCountByInsurer[insurer!] = value
+        if (biz === "rn") {
+          if (section === "premium") draft.rnPremiumByInsurer[who] = value
+          if (section === "count") {
+            draft.rnCountByInsurer[who] = value
+            rnProductCounts.add(`${draft.month}|${who}`)
+          }
+        } else {
+          if (section === "premium") draft.nbPremiumByInsurer[who] = value
+          if (section === "count") draft.nbCountByInsurer[who] = value
+        }
       })
       continue
     }
@@ -403,24 +432,29 @@ export function parseSalesReport(buffer: ArrayBuffer): { months: Record<string, 
       continue
     }
     if (lower === "online channel" && insurer && product) {
-      write(row, (draft, value) => touchGroup(draft, insurer!, product!, "online", section === "premium" ? "premium" : "count", value))
+      write(row, (draft, value) => touchGroup(draft, insurer!, product!, productBiz, "online", section === "premium" ? "premium" : "count", value))
       continue
     }
     if ((lower === "ctg channel" || lower === "offline") && insurer && product) {
-      write(row, (draft, value) => touchGroup(draft, insurer!, product!, "offline", section === "premium" ? "premium" : "count", value))
+      write(row, (draft, value) => touchGroup(draft, insurer!, product!, productBiz, "offline", section === "premium" ? "premium" : "count", value))
       continue
     }
     if (name === "Taiping Renewal" || name === "PICC Renewal") {
       const who = name.startsWith("Taiping") ? "太平" : "人保"
       if (unit === "$") write(row, (draft, value) => { draft.rnPremiumByInsurer[who] = value })
-      if (unit === "#") write(row, (draft, value) => { draft.rnCountByInsurer[who] = value })
+      if (unit === "#") {
+        write(row, (draft, value) => {
+          if (rnProductCounts.has(`${draft.month}|${who}`)) return
+          draft.rnCountByInsurer[who] = value
+        })
+      }
       continue
     }
 
     const channel = channelOf(name)
     if (channel && insurer && product && (section === "premium" || section === "count")) {
       write(row, (draft, value) => {
-        touchSlice(draft, insurer!, product!, channel.group, channel.channel, section === "premium" ? "premium" : "count", value)
+        touchSlice(draft, insurer!, product!, productBiz, channel.group, channel.channel, section === "premium" ? "premium" : "count", value)
       })
     }
   }
@@ -429,7 +463,9 @@ export function parseSalesReport(buffer: ArrayBuffer): { months: Record<string, 
   const warnings: string[] = []
   for (const draft of drafts.values()) {
     const insurerRn = (draft.rnCountByInsurer["太平"] ?? 0) + (draft.rnCountByInsurer["人保"] ?? 0)
-    if ((draft.rnSales === null || draft.rnSales === 0) && insurerRn > 0) draft.rnSales = insurerRn
+    const fromProduct = rnProductCounts.has(`${draft.month}|太平`) || rnProductCounts.has(`${draft.month}|人保`)
+    if (fromProduct && insurerRn > 0) draft.rnSales = insurerRn
+    else if ((draft.rnSales === null || draft.rnSales === 0) && insurerRn > 0) draft.rnSales = insurerRn
     clearUnclosed(draft)
     const rnCountAnomaly = (draft.rnSales === 0 || draft.rnSales === null) && (draft.premiumRn ?? 0) > 0
     if (rnCountAnomaly) {

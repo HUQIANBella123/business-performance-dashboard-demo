@@ -168,7 +168,7 @@ function reportCommissionParts(report: ReportMonth | undefined, rules: RulesConf
   let nb = 0
   let nbAny = false
   for (const group of report.productGroups) {
-    if (group.premium === null) continue
+    if ((group.biz ?? "nb") !== "nb" || group.premium === null) continue
     nbAny = true
     nb += group.premium * commissionRate(group.insurer, group.product, group.group, rules).rate
   }
@@ -225,18 +225,28 @@ function metricsAt(bundle: Bundle, cases: CaseRecord[], month: string, rules: Ru
   const rnHkd = rnList?.hkd ?? num(report?.premiumRn, "销售报表")
 
   const dealCases = monthCases.filter((item) => item.isDeal)
+  const groupedDeals = (biz: "nb" | "rn", group: "online" | "offline"): number | null => {
+    const rows = report?.productGroups.filter((item) => (item.biz ?? "nb") === biz && item.group === group && item.count !== null) ?? []
+    if (!rows.length) return null
+    return rows.reduce((total, item) => total + (item.count ?? 0), 0)
+  }
   const channelBiz = (biz: "nb" | "rn", group: "online" | "offline"): Sourced => {
     if (monthCases.some((item) => item.biz === biz)) {
       return num(dealCases.filter((item) => item.biz === biz && item.channelGroup === group).length, "名单")
     }
-    if (biz === "nb") return num(group === "online" ? report?.onlineNb : report?.offlineNb, report ? "销售报表" : null)
-    return num(null, null)
+    if (!report) return num(null, null)
+    if (biz === "nb") {
+      const direct = group === "online" ? report.onlineNb : report.offlineNb
+      if (direct !== null) return num(direct, "销售报表")
+    }
+    return num(groupedDeals(biz, group), "销售报表")
   }
   const nbOnline = channelBiz("nb", "online")
   const nbOffline = channelBiz("nb", "offline")
   const rnOnline = channelBiz("rn", "online")
   const rnOffline = channelBiz("rn", "offline")
-  const channelScope = dealCases.length ? "名单中的成交" : "销售报表的新增成交"
+  const renewalChannels = (report?.slices ?? []).some((item) => (item.biz ?? "nb") === "rn" && (item.count ?? 0) > 0)
+  const channelScope = dealCases.length ? "名单中的成交" : renewalChannels ? "销售报表的新增和续保成交" : "销售报表的新增成交"
 
   const insurerBiz = (insurer: string, biz: "nb" | "rn"): Sourced => {
     const listed = monthCases.filter((item) => item.biz === biz && item.insurer === insurer)
@@ -641,10 +651,10 @@ function productMatrix(deals: CaseRecord[], report: ReportMonth | undefined) {
     const key = `${item.insurer}|${item.product}`
     const row = map.get(key) ?? { insurer: item.insurer, product: item.product, online: 0, offline: 0, premium: 0 }
     if (item.group === "online") {
-      row.online = item.count ?? row.online
+      row.online += item.count ?? 0
       row.premium += item.premium ?? 0
     } else {
-      row.offline = item.count ?? row.offline
+      row.offline += item.count ?? 0
       row.premium += item.premium ?? 0
     }
     map.set(key, row)

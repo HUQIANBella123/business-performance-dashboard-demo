@@ -11,9 +11,12 @@ import { applyStaged, detectConflicts, metricsFromReport, metricsFromSocial, met
 import { buildView, type FileChip } from "./lib/view"
 
 const SAMPLES = [
-  { slot: "sales", path: `${import.meta.env.BASE_URL}samples/ctia-sales-report.xlsx`, name: "CTIA Sales Report（示例，续保队列至 2026-09）" },
-  { slot: "supplement", path: `${import.meta.env.BASE_URL}samples/ctia-bpr-supplement.xlsx`, name: "其他数据补充（示例）" },
-  { slot: "social", path: `${import.meta.env.BASE_URL}samples/ctia-social-monthly.xlsx`, name: "小红书及微信月报（示例）" },
+  {
+    slot: "sales",
+    path: `${import.meta.env.BASE_URL}samples/ctia-sales-report.xlsx`,
+    name: "CTIA SalesReport_B2C.xlsx",
+    filename: "CTIA_SalesReport_B2C.xlsx",
+  },
 ]
 
 async function stageFile(slot: string, file: File, label = file.name): Promise<StagedFile> {
@@ -137,7 +140,7 @@ export default function App() {
           const response = await fetch(sample.path)
           if (!response.ok) throw new Error(sample.path)
           if (cancelled) return
-          const filename = sample.path.split("/").pop() ?? sample.name
+          const filename = sample.filename ?? sample.path.split("/").pop() ?? sample.name
           const file = new File([await response.arrayBuffer()], filename)
           const stagedFile = await stageFile(sample.slot, file, sample.name)
           current = applyStaged(current, [stagedFile], [], {})
