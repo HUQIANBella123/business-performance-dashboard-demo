@@ -42,41 +42,44 @@ export function funnelOption(view: DashboardView): EChartsOption {
   }
 }
 
-export function gaugeBoard(view: DashboardView): EChartsOption {
-  const gauges = [
-    { id: "sa", name: "新增转化" },
-    { id: "sm", name: "验车转化" },
-    { id: "rnsa", name: "续保转化" },
-  ].map((item) => ({ ...item, kpi: findKpi(view, item.id) }))
+export const GAUGE_SPECS = [
+  { id: "sa", name: "新增转化" },
+  { id: "sm", name: "验车转化" },
+  { id: "rnsa", name: "续保转化" },
+] as const
+
+export function singleGauge(view: DashboardView, spec: (typeof GAUGE_SPECS)[number]): EChartsOption {
+  const kpi = findKpi(view, spec.id)
+  const raw = kpi?.value
+  const value = raw === null || raw === undefined ? 0 : Math.max(0, Math.min(raw * 100, 150))
+  const color = PALETTE[GAUGE_SPECS.findIndex((item) => item.id === spec.id)] ?? TEAL
   return {
     ...base(),
-    series: gauges.map((item, index) => {
-      const raw = item.kpi?.value
-      const value = raw === null || raw === undefined ? 0 : Math.max(0, Math.min(raw * 100, 150))
-      return {
+    series: [
+      {
         type: "gauge",
-        center: [`${18 + index * 32}%`, "58%"],
-        radius: "68%",
+        center: ["50%", "56%"],
+        radius: "74%",
         min: 0,
         max: 100,
-        progress: { show: true, width: 10, itemStyle: { color: PALETTE[index] } },
-        axisLine: { lineStyle: { width: 10, color: [[1, "rgba(138,163,153,0.25)"]] } },
+        progress: { show: true, width: 12, itemStyle: { color } },
+        axisLine: { lineStyle: { width: 12, color: [[1, "rgba(138,163,153,0.25)"]] } },
         axisTick: { show: false },
-        splitLine: { length: 8, lineStyle: { color: AXIS } },
-        axisLabel: { color: AXIS, distance: 12, fontSize: 10 },
-        pointer: { itemStyle: { color: PALETTE[index] }, width: 4 },
+        splitLine: { length: 8, distance: 4, lineStyle: { color: AXIS } },
+        axisLabel: { color: AXIS, distance: 14, fontSize: 10 },
+        pointer: { itemStyle: { color }, width: 4 },
         anchor: { show: true, size: 8, itemStyle: { color: GOLD } },
-        title: { offsetCenter: [0, "78%"], color: INK, fontSize: 12 },
+        title: { offsetCenter: [0, "78%"], color: INK, fontSize: 13 },
         detail: {
           valueAnimation: true,
-          offsetCenter: [0, "48%"],
+          offsetCenter: [0, "46%"],
           color: INK,
-          fontSize: 16,
-          formatter: () => item.kpi?.display ?? "—",
+          fontSize: 18,
+          formatter: () => kpi?.display ?? "—",
         },
-        data: [{ value, name: item.name }],
-      }
-    }),
+        data: [{ value, name: spec.name }],
+      },
+    ],
   }
 }
 
@@ -85,8 +88,8 @@ export function momentumOption(trend: TrendPoint[]): EChartsOption {
   return {
     ...base(),
     legend: { textStyle: { color: AXIS }, top: 0 },
-    grid: { left: 48, right: 24, top: 36, bottom: 48 },
-    dataZoom: [{ type: "inside" }, { type: "slider", height: 16, bottom: 8, borderColor: "transparent", textStyle: { color: AXIS } }],
+    grid: { left: 12, right: 16, top: 40, bottom: 52, containLabel: true },
+    dataZoom: [{ type: "inside" }, { type: "slider", height: 18, bottom: 6, borderColor: "transparent", textStyle: { color: AXIS }, brushSelect: false }],
     xAxis: { type: "category", data: labels, axisLabel: { color: AXIS }, axisLine: { lineStyle: { color: "rgba(61,222,200,0.3)" } } },
     yAxis: [
       { type: "value", alignTicks: false, axisLabel: { color: AXIS }, splitLine: { lineStyle: { color: "rgba(138,163,153,0.15)" } } },
@@ -131,11 +134,29 @@ export function premiumRiver(trend: TrendPoint[]): EChartsOption {
     ...base(),
     tooltip: { ...base().tooltip, trigger: "axis" },
     legend: { textStyle: { color: AXIS }, top: 0 },
+    dataZoom: [
+      { type: "inside", singleAxisIndex: 0 },
+      {
+        type: "slider",
+        singleAxisIndex: 0,
+        height: 22,
+        bottom: 8,
+        borderColor: "#e4d8c8",
+        backgroundColor: "#f6f1e8",
+        fillerColor: "rgba(47,109,82,0.25)",
+        handleStyle: { color: "#2f6d52", borderColor: "#1e3f34" },
+        moveHandleStyle: { color: "#2f6d52" },
+        textStyle: { color: AXIS },
+        brushSelect: false,
+        showDetail: false,
+      },
+    ],
     singleAxis: {
       type: "time",
-      top: 48,
-      bottom: 28,
-      axisLabel: { color: AXIS },
+      orient: "horizontal",
+      top: 36,
+      bottom: 48,
+      axisLabel: { color: AXIS, hideOverlap: true },
       axisLine: { lineStyle: { color: "rgba(61,222,200,0.35)" } },
     },
     series: [
@@ -205,26 +226,42 @@ export function roseOption(rows: NameValue[], name: string): EChartsOption {
   }
 }
 
+function bizLabel(biz: "nb" | "rn") {
+  return biz === "nb" ? "新投保" : "续保"
+}
+
+function addLink(links: { source: string; target: string; value: number }[], source: string, target: string, value: number) {
+  if (value <= 0) return
+  const found = links.find((link) => link.source === source && link.target === target)
+  if (found) found.value += value
+  else links.push({ source, target, value })
+}
+
 export function productSankey(view: DashboardView): EChartsOption {
-  const nodes = new Map<string, { name: string }>()
   const links: { source: string; target: string; value: number }[] = []
+  const nodes: string[] = []
   const touch = (name: string) => {
-    if (!nodes.has(name)) nodes.set(name, { name })
+    if (!nodes.includes(name)) nodes.push(name)
   }
+  const businesses = [...new Set(view.products.map((row) => row.biz))].sort((a, b) => (a === b ? 0 : a === "nb" ? -1 : 1))
+  for (const biz of businesses) touch(bizLabel(biz))
   for (const row of view.products) {
-    const mid = `${row.insurer}·${row.product}`
-    touch(row.insurer)
-    touch(mid)
-    const online = Math.max(row.online, 0)
-    const offline = Math.max(row.offline, 0)
-    if (online + offline > 0) links.push({ source: row.insurer, target: mid, value: online + offline })
-    if (online > 0) {
+    const count = Math.max(row.online, 0) + Math.max(row.offline, 0)
+    if (count <= 0) continue
+    const biz = bizLabel(row.biz)
+    const product = `${biz}·${row.product}`
+    const insurer = `${product}·${row.insurer}`
+    touch(product)
+    touch(insurer)
+    addLink(links, biz, product, count)
+    addLink(links, product, insurer, count)
+    if (row.online > 0) {
       touch("线上")
-      links.push({ source: mid, target: "线上", value: online })
+      addLink(links, insurer, "线上", row.online)
     }
-    if (offline > 0) {
+    if (row.offline > 0) {
       touch("线下")
-      links.push({ source: mid, target: "线下", value: offline })
+      addLink(links, insurer, "线下", row.offline)
     }
   }
   return {
@@ -233,15 +270,72 @@ export function productSankey(view: DashboardView): EChartsOption {
       {
         type: "sankey",
         nodeAlign: "justify",
+        nodeGap: 14,
+        nodeWidth: 12,
+        left: 8,
+        right: 72,
+        top: 12,
+        bottom: 12,
         draggable: true,
         emphasis: { focus: "adjacency" },
         lineStyle: { color: "gradient", curveness: 0.5, opacity: 0.45 },
-        label: { color: INK },
+        label: {
+          color: INK,
+          fontSize: 12,
+          formatter: (params) => {
+            const name = String(params.name ?? "")
+            const parts = name.split("·")
+            return parts[parts.length - 1] ?? name
+          },
+        },
         itemStyle: { borderWidth: 0 },
-        data: [...nodes.values()],
+        data: nodes.map((name) => ({ name })),
         links,
       },
     ],
+  }
+}
+
+export function productBars(view: DashboardView): EChartsOption {
+  const businesses = [
+    { biz: "nb" as const, label: "新投保" },
+    { biz: "rn" as const, label: "续保" },
+  ]
+  const products = [...new Set(["等效先认", "一站式", ...view.products.map((row) => row.product)])]
+  const categories = businesses.flatMap((business) => products.map((product) => `${business.label}·${product}`))
+  const series = [
+    { name: "太平线上", insurer: "太平", channel: "online" as const },
+    { name: "太平线下", insurer: "太平", channel: "offline" as const },
+    { name: "人保线上", insurer: "人保", channel: "online" as const },
+    { name: "人保线下", insurer: "人保", channel: "offline" as const },
+  ]
+  return {
+    ...base(),
+    legend: { top: 0, textStyle: { color: AXIS } },
+    grid: { left: 12, right: 16, top: 40, bottom: 8, containLabel: true },
+    xAxis: {
+      type: "category",
+      data: categories,
+      axisLabel: { color: AXIS, interval: 0 },
+    },
+    yAxis: {
+      type: "value",
+      axisLabel: { color: AXIS },
+      splitLine: { lineStyle: { color: "rgba(138,163,153,0.15)" } },
+    },
+    series: series.map((item, index) => ({
+      name: item.name,
+      type: "bar" as const,
+      barMaxWidth: 28,
+      itemStyle: { color: PALETTE[index % PALETTE.length] },
+      data: categories.map((category) => {
+        const [label, product] = category.split("·")
+        const biz = label === "新投保" ? "nb" : "rn"
+        return view.products
+          .filter((row) => row.biz === biz && row.product === product && row.insurer === item.insurer)
+          .reduce((total, row) => total + (item.channel === "online" ? row.online : row.offline), 0)
+      }),
+    })),
   }
 }
 
@@ -393,10 +487,13 @@ export function socialRadar(block: DashboardView["social"][number]): EChartsOpti
   const max = Math.max(...metrics.map((metric) => Math.max(metric.value ?? 0, metric.ytd ?? 0)), 1)
   return {
     ...base(),
-    legend: { bottom: 0, textStyle: { color: AXIS } },
+    legend: { top: 4, left: "center", itemGap: 28, textStyle: { color: AXIS, fontSize: 12 } },
     radar: {
+      center: ["50%", "60%"],
+      radius: "50%",
+      axisNameGap: 16,
       indicator: metrics.map((metric) => ({ name: metric.label, max })),
-      axisName: { color: AXIS },
+      axisName: { color: AXIS, fontSize: 12, padding: [4, 6] },
       splitLine: { lineStyle: { color: "rgba(61,222,200,0.2)" } },
       splitArea: { areaStyle: { color: ["rgba(61,222,200,0.05)", "transparent"] } },
     },

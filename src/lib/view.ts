@@ -90,6 +90,15 @@ export type Narratives = {
 
 export type NameValue = { name: string; value: number; share: number }
 
+export type ProductSlice = {
+  biz: "nb" | "rn"
+  insurer: string
+  product: string
+  online: number
+  offline: number
+  premium: number
+}
+
 export type DashboardView = {
   month: string
   months: string[]
@@ -98,7 +107,7 @@ export type DashboardView = {
   channels: NameValue[]
   channelScope: string
   insurers: NameValue[]
-  products: { insurer: string; product: string; online: number; offline: number; premium: number }[]
+  products: ProductSlice[]
   plans: { fromLists: boolean; sections: PlanSection[] }
   renewal: { rows: RenewalRow[]; hasLists: boolean; note: string }
   media: { name: string; metrics: { label: string; value: number | null; source: string | null }[] }[]
@@ -633,12 +642,12 @@ function groupCount<T>(items: T[], keyFn: (item: T) => string): [string, number]
   return [...map.entries()]
 }
 
-function productMatrix(deals: CaseRecord[], report: ReportMonth | undefined) {
+function productMatrix(deals: CaseRecord[], report: ReportMonth | undefined): ProductSlice[] {
   if (deals.length) {
-    const map = new Map<string, { insurer: string; product: string; online: number; offline: number; premium: number }>()
+    const map = new Map<string, ProductSlice>()
     for (const item of deals) {
-      const key = `${item.insurer}|${item.product}`
-      const row = map.get(key) ?? { insurer: item.insurer, product: item.product, online: 0, offline: 0, premium: 0 }
+      const key = `${item.biz}|${item.insurer}|${item.product}`
+      const row = map.get(key) ?? { biz: item.biz, insurer: item.insurer, product: item.product, online: 0, offline: 0, premium: 0 }
       if (item.channelGroup === "online") row.online += 1
       if (item.channelGroup === "offline") row.offline += 1
       row.premium += item.hkd
@@ -646,10 +655,10 @@ function productMatrix(deals: CaseRecord[], report: ReportMonth | undefined) {
     }
     return [...map.values()]
   }
-  const map = new Map<string, { insurer: string; product: string; online: number; offline: number; premium: number }>()
+  const map = new Map<string, ProductSlice>()
   for (const item of report?.productGroups ?? []) {
-    const key = `${item.insurer}|${item.product}`
-    const row = map.get(key) ?? { insurer: item.insurer, product: item.product, online: 0, offline: 0, premium: 0 }
+    const key = `${item.biz}|${item.insurer}|${item.product}`
+    const row = map.get(key) ?? { biz: item.biz, insurer: item.insurer, product: item.product, online: 0, offline: 0, premium: 0 }
     if (item.group === "online") {
       row.online += item.count ?? 0
       row.premium += item.premium ?? 0

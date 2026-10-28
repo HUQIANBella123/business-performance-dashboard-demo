@@ -1,20 +1,22 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { EChart } from "./EChart"
-import { fmtInt, fmtPct, monthLabel } from "../lib/months"
+import { fmtInt, fmtPct } from "../lib/months"
 import {
   channelForce,
   funnelOption,
-  gaugeBoard,
+  GAUGE_SPECS,
   mediaRadar,
   mediaTrendOption,
   momentumOption,
   planTree,
   premiumRiver,
+  productBars,
   productSankey,
   reconcileScatter,
   renewalGauge,
   renewalHeat,
   roseOption,
+  singleGauge,
   socialRadar,
 } from "./screenCharts"
 import { resolveSummary } from "../lib/narrative"
@@ -64,9 +66,6 @@ export function Board(props: Props) {
               <h1 className="text-3xl font-semibold tracking-tight text-pine md:text-4xl">港车北上业绩</h1>
               <span className={`rounded-full px-2.5 py-1 text-xs font-semibold tracking-normal ${EDITION === "test" ? "bg-clay/15 text-clay" : "bg-pine/10 text-pine"}`}>{EDITION_LABEL}</span>
             </div>
-            <p className="mt-2 max-w-2xl text-sm text-muted">
-              名单在浏览器里计算。统计月按创建时间。支付成功和已上传证明都算成交；同一车牌两者同时出现时只保留支付成功。
-            </p>
           </div>
           <MonthPicker month={view.month} months={view.months} onConfirm={props.onMonth} />
         </div>
@@ -89,8 +88,7 @@ export function Board(props: Props) {
           </button>
           {openUploads && (
             <div className="border-t border-line px-4 py-4">
-              <p className="text-sm text-muted">选择文件后先在下面预览覆盖的月份和内容。点提交后才进入看板。同一批文件里如果同一指标对不上，需要先看对照，再确认提交。</p>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {SLOTS.map((slot) => {
                   const loaded = props.files.filter((file) => file.slot === slot.id)
                   return (
@@ -154,7 +152,6 @@ export function Board(props: Props) {
                 {props.conflicts.length > 0 && (
                   <div className="mt-4">
                     <h3 className="text-sm font-medium">同一指标有不同数值，请选择保留哪一份</h3>
-                    <p className="mt-1 text-xs text-muted">对照看完后，再点确认提交。名单和销售报表的合计差异不在这里比对，有名单的月份仍以名单为准。</p>
                     <div className="mt-2 max-h-80 space-y-3 overflow-auto">
                       {props.conflicts.map((conflict) => (
                         <fieldset key={conflict.id} className="rounded-lg border border-line px-3 py-2">
@@ -217,7 +214,6 @@ export function Board(props: Props) {
 
 function Overview({ view, files }: { view: DashboardView; files: FileChip[] }) {
   const funnel = useMemo(() => funnelOption(view), [view])
-  const gauges = useMemo(() => gaugeBoard(view), [view])
   const momentum = useMemo(() => momentumOption(view.trend), [view.trend])
   const river = useMemo(() => premiumRiver(view.trend), [view.trend])
   const scatter = useMemo(() => reconcileScatter(view), [view])
@@ -248,22 +244,26 @@ function Overview({ view, files }: { view: DashboardView; files: FileChip[] }) {
           </section>
         )
       })}
-      <div className="grid gap-4 lg:grid-cols-5">
-        <ChartFrame title="成交漏斗" note="从验车到成交，点图形可看当月数值。" className="lg:col-span-3">
+      <div className="grid gap-4 lg:grid-cols-2">
+        <ChartFrame title="成交漏斗">
           <EChart option={funnel} className="h-full w-full" />
         </ChartFrame>
-        <ChartFrame title="转化仪表" className="lg:col-span-2">
-          <EChart option={gauges} className="h-full w-full" />
+        <ChartFrame title="转化仪表" bodyClass="h-auto">
+          <div className="grid gap-2 sm:grid-cols-3">
+            {GAUGE_SPECS.map((spec) => (
+              <EChart key={spec.id} option={singleGauge(view, spec)} className="h-56 w-full" />
+            ))}
+          </div>
         </ChartFrame>
       </div>
-      <ChartFrame title="成交动量" note="拖动底部滑块看更长区间。验车数走右轴。">
+      <ChartFrame title="成交动量" bodyClass="h-96">
         <EChart option={momentum} className="h-full w-full" />
       </ChartFrame>
-      <ChartFrame title="保费河流" note="色带宽度是当月新增保费和续保保费。">
+      <ChartFrame title="保费河流" bodyClass="h-96">
         <EChart option={river} className="h-full w-full" />
       </ChartFrame>
       {view.reconciliation.length > 0 && (
-        <ChartFrame title="名单与销售报表对照" note="点越靠近虚线，两套数越接近。">
+        <ChartFrame title="名单与销售报表对照">
           <EChart option={scatter} className="h-full w-full" />
         </ChartFrame>
       )}
@@ -286,7 +286,6 @@ function Sources({ month, files }: { month: string; files: FileChip[] }) {
   return (
     <section className="screen-card p-4">
       <h2 className="text-lg font-semibold">数据来源</h2>
-      <p className="mt-1 text-sm text-muted">这些文件用来生成 {monthLabel(month)}的业绩看板。预览会新开页面，并标出这个月那一列。</p>
       {used.length === 0 && <p className="mt-3 text-sm text-muted">这个月还没有载入数据来源。</p>}
       <ul className="mt-3 grid gap-3 lg:grid-cols-2">
         {used.map((file) => (
@@ -335,7 +334,7 @@ function Channels({ view }: { view: DashboardView }) {
     <>
       <Summary month={view.month} tab="渠道" text={view.narratives.channels} />
       <div className="grid gap-4 lg:grid-cols-2">
-        <ChartFrame title="渠道力导图" note="可拖拽、缩放。圆越大，单量越高。">
+        <ChartFrame title="渠道力导图">
           {view.channels.length === 0 ? <EmptyChart text="这个月没有渠道拆分。" /> : <EChart option={force} className="h-full w-full" />}
         </ChartFrame>
         <ChartFrame title="渠道占比">
@@ -355,18 +354,17 @@ function findOnline(view: DashboardView, id: "online" | "offline"): number {
 
 function Products({ view }: { view: DashboardView }) {
   const sankey = useMemo(() => productSankey(view), [view])
-  const rose = useMemo(() => roseOption(view.insurers, "保司"), [view.insurers])
+  const bars = useMemo(() => productBars(view), [view])
+  const empty = view.products.length === 0
   return (
     <>
       <Summary month={view.month} tab="保司与产品" text={view.narratives.products} />
-      <div className="grid gap-4 lg:grid-cols-5">
-        <ChartFrame title="保司流向" note="从保司到产品，再到线上或线下。可拖动节点。" className="lg:col-span-3">
-          {view.products.length === 0 ? <EmptyChart text="这个月还没有产品拆分。" /> : <EChart option={sankey} className="h-full w-full" />}
-        </ChartFrame>
-        <ChartFrame title="保司结构" className="lg:col-span-2">
-          {view.insurers.length === 0 ? <EmptyChart text="这个月还没有保司成交。" /> : <EChart option={rose} className="h-full w-full" />}
-        </ChartFrame>
-      </div>
+      <ChartFrame title="投保与产品流向" bodyClass="h-[34rem]">
+        {empty ? <EmptyChart text="这个月还没有产品拆分。" /> : <EChart option={sankey} className="h-full w-full" />}
+      </ChartFrame>
+      <ChartFrame title="投保与产品结构" bodyClass="h-96">
+        {empty ? <EmptyChart text="这个月还没有产品拆分。" /> : <EChart option={bars} className="h-full w-full" />}
+      </ChartFrame>
     </>
   )
 }
@@ -377,7 +375,7 @@ function Plans({ view }: { view: DashboardView }) {
   return (
     <>
       <Summary month={view.month} tab="方案" text={view.narratives.plans} />
-      <ChartFrame title="方案结构" note="面积是成交单量。点击色块可以下钻到该分组。" bodyClass="h-[32rem]">
+      <ChartFrame title="方案结构" bodyClass="h-[32rem]">
         {hasPlans ? <EChart option={tree} className="h-full w-full" /> : <EmptyChart text="这个月还没有方案成交量。" />}
       </ChartFrame>
     </>
@@ -394,9 +392,6 @@ function Renewal({ view }: { view: DashboardView }) {
       <Summary month={view.month} tab="续保" text={view.narratives.renewal} />
       <section className="screen-card p-4">
         <h2 className="text-lg font-semibold">本月续保</h2>
-        <p className="mt-1 text-sm text-muted">
-          一站式应续保、已续保、未续保分别取 Sales Report 的「一站式應續保」「一站式已續保」「一站式未續保」，续保率取同一列的 renewal rate。26年7月这三格是 AQ357、AQ360、AQ361。
-        </p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <RenewalStat label="一站式应续保" value={fmtRenewal(current?.due)} source={current?.source} />
           <RenewalStat label="一站式已续保" value={fmtRenewal(current?.renewed)} source={current?.source} />
@@ -411,10 +406,10 @@ function Renewal({ view }: { view: DashboardView }) {
         </div>
       </section>
       <div className="grid gap-4 lg:grid-cols-5">
-        <ChartFrame title="应续保热力" note="第一行起是应续保、已续保、未续保。颜色越深，数量越大。" className="lg:col-span-3" bodyClass="h-96">
+        <ChartFrame title="应续保热力" className="lg:col-span-3" bodyClass="h-96">
           <EChart option={heat} className="h-full w-full" />
         </ChartFrame>
-        <ChartFrame title="本月一站式续保率" note={current?.source ?? "暂无来源"} className="lg:col-span-2">
+        <ChartFrame title="本月一站式续保率" className="lg:col-span-2">
           <EChart option={gauge} className="h-full w-full" />
         </ChartFrame>
       </div>
@@ -443,7 +438,7 @@ function Media({ view }: { view: DashboardView }) {
     <>
       <Summary month={view.month} tab="投放" text={view.narratives.media} />
       <div className="grid gap-4 lg:grid-cols-2">
-        <ChartFrame title="投放雷达" note="同一尺度对比谷歌 SEM 和 Facebook。">
+        <ChartFrame title="投放雷达">
           <EChart option={radar} className="h-full w-full" />
         </ChartFrame>
         <ChartFrame title="花费曲线与转化点">
@@ -454,13 +449,18 @@ function Media({ view }: { view: DashboardView }) {
   )
 }
 
+function bareXiaohongshu(title: string) {
+  return title.replace(/\s/g, "").replace(/書/g, "书").replace(/紅/g, "红") === "小红书"
+}
+
 function Social({ view }: { view: DashboardView }) {
+  const blocks = view.social.filter((block) => !bareXiaohongshu(block.title))
   return (
     <>
       <Summary month={view.month} tab="内容" text={view.narratives.social} />
-      {view.social.length === 0 && <EmptyChart text="还没有内容月报。" />}
+      {blocks.length === 0 && <EmptyChart text="还没有内容月报。" />}
       <div className="grid gap-4 lg:grid-cols-2">
-        {view.social.map((block) => (
+        {blocks.map((block) => (
           <SocialBlock key={block.title} block={block} />
         ))}
       </div>
@@ -472,7 +472,7 @@ function SocialBlock({ block }: { block: DashboardView["social"][number] }) {
   const radar = useMemo(() => socialRadar(block), [block])
   const ready = block.metrics.some((metric) => !metric.rate && metric.value !== null)
   return (
-    <ChartFrame title={block.title} note="实线是本月，金线是本年累计。环比和同比仍写在总结里。">
+    <ChartFrame title={block.title} bodyClass="h-96">
       {ready ? <EChart option={radar} className="h-full w-full" /> : <EmptyChart text="这个账号还没有可画的数量指标。" />}
     </ChartFrame>
   )
