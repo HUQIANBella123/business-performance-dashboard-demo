@@ -110,14 +110,11 @@ describe("narratives follow the loaded numbers", () => {
 })
 
 describe("saved summaries", () => {
-  it("drops a note written against an older dataset", () => {
+  it("keeps a confirmed note after the generated text changes", () => {
     const generated = "26年7月成交 244。"
+    expect(resolveSummary(null, generated)).toBe(generated)
     expect(resolveSummary("26年7月成交 623。", generated)).toBe(generated)
-    expect(resolveSummary(JSON.stringify({ text: "手工补充。", base: "26年7月成交 623。" }), generated)).toBe(generated)
-  })
-
-  it("keeps a note the user edited for the current numbers", () => {
-    const generated = "26年7月成交 244。"
-    expect(resolveSummary(JSON.stringify({ text: "244 单，重点看续保。", base: generated }), generated)).toBe("244 单，重点看续保。")
+    expect(resolveSummary(JSON.stringify({ text: "手工补充。" }), generated)).toBe("手工补充。")
+    expect(resolveSummary(JSON.stringify({ text: "244 单，重点看续保。", base: "旧稿" }), generated)).toBe("244 单，重点看续保。")
   })
 })

@@ -43,7 +43,6 @@ type Props = {
   confirming: boolean
   onMonth: (month: string) => void
   onRules: (rules: RulesConfig) => void
-  onResetRules: () => void
   onStage: (slot: string, file: File) => Promise<void>
   onUnstage: (id: string) => void
   onChoose: (conflictId: string, optionId: string) => void
@@ -206,7 +205,7 @@ export function Board(props: Props) {
         {tab === "续保" && <Renewal view={view} />}
         {tab === "投放" && <Media view={view} />}
         {tab === "内容" && <Social view={view} />}
-        {tab === "口径" && <Rules view={view} rules={props.rules} onRules={props.onRules} onReset={props.onResetRules} />}
+        {tab === "口径" && <Rules view={view} rules={props.rules} onRules={props.onRules} />}
       </main>
     </div>
   )
@@ -482,14 +481,11 @@ function Rules({
   view,
   rules,
   onRules,
-  onReset,
 }: {
   view: DashboardView
   rules: RulesConfig
   onRules: (rules: RulesConfig) => void
-  onReset: () => void
 }) {
-  const [rateForm, setRateForm] = useState(0)
   const set = (patch: Partial<RulesConfig>) => onRules({ ...rules, ...patch })
   return (
     <div className="grid gap-4 lg:grid-cols-2">
@@ -510,16 +506,7 @@ function Rules({
         <p className="mt-2 text-muted">
           太平佣金 = 港币保费 × 太平佣金率。人保一站式佣金 = 港币保费 × 人保一站式佣金率。人保等效先认线上、线下分别乘对应佣金率。渠道未能归入线上或线下时，人保等效先认先按线上佣金率估算，并在总览标出。
         </p>
-        <RateFields key={rateForm} rules={rules} onChange={set} />
-        <button
-          className="mt-4 text-sm text-brass"
-          onClick={() => {
-            onReset()
-            setRateForm((form) => form + 1)
-          }}
-        >
-          恢复默认口径
-        </button>
+        <RateFields rules={rules} onChange={set} />
       </section>
       <section className="rounded-2xl border border-line bg-card p-4">
         <h2 className="text-lg font-semibold">这个月的检查</h2>
@@ -535,10 +522,6 @@ function Rules({
             </li>
           ))}
         </ul>
-        <h2 className="mt-5 text-lg font-semibold">还不能从名单单独得到的数</h2>
-        <p className="mt-2 text-sm leading-6 text-muted">
-          验车数、咨询量、SEM 和 Facebook 来自「其他数据补充」，没有补充表时用 Sales Report。还没有名单时，一站式应续保、已续保、未续保用销售报表；名单上传后改按车牌计算，不读补充表。还没有续保名单时，销售报表分不出续保的线上成交和线下成交，总览里这两项显示为 —，不是 0。名单上传后改按名单计算。小红书和微信只来自内容月报。B2B 不在这张看板里。
-        </p>
       </section>
     </div>
   )
@@ -587,46 +570,59 @@ function RateField({ label, value, onChange }: { label: string; value: number; o
 }
 
 function MonthPicker({ month, months, onConfirm }: { month: string; months: string[]; onConfirm: (month: string) => void }) {
-  const [year, setYear] = useState(month.slice(0, 4))
-  const [mon, setMon] = useState(month.slice(5, 7))
+  const validMonths = months.filter((item) => /^\d{4}-\d{2}$/.test(item))
+  const current = validMonths.includes(month) ? month : validMonths[validMonths.length - 1] ?? ""
+  const [year, setYear] = useState(current.slice(0, 4))
+  const [mon, setMon] = useState(current.slice(5, 7))
   useEffect(() => {
-    setYear(month.slice(0, 4))
-    setMon(month.slice(5, 7))
-  }, [month])
-  const years = [...new Set(months.map((item) => item.slice(0, 4)))]
-  const monthOptions = months.filter((item) => item.startsWith(`${year}-`)).map((item) => item.slice(5, 7))
-  const selectedMon = monthOptions.includes(mon) ? mon : monthOptions[0] ?? mon
+    if (!current) return
+    setYear(current.slice(0, 4))
+    setMon(current.slice(5, 7))
+  }, [current])
+  const years = [...new Set(validMonths.map((item) => item.slice(0, 4)))]
+  const selectedYear = years.includes(year) ? year : years[0] ?? ""
+  const monthOptions = validMonths.filter((item) => item.startsWith(`${selectedYear}-`)).map((item) => item.slice(5, 7))
+  const selectedMon = monthOptions.includes(mon) ? mon : monthOptions[0] ?? ""
+  if (!selectedYear || !selectedMon) {
+    return (
+      <div className="relative z-20 flex items-center gap-2 text-sm text-muted">
+        <span>统计月</span>
+        <span>暂无月份</span>
+      </div>
+    )
+  }
   return (
-    <div className="flex flex-wrap items-center gap-2 text-sm">
+    <div className="relative z-20 flex flex-wrap items-center gap-2 text-sm">
       <span className="text-muted">统计月</span>
       <select
         aria-label="年份"
-        className="num rounded-md border border-line bg-card px-3 py-2 text-base text-ink"
-        value={year}
+        className="num min-w-28 rounded-md border border-line bg-card px-3 py-2 text-base text-ink"
+        value={selectedYear}
         onChange={(event) => {
           const nextYear = event.target.value
           setYear(nextYear)
-          const available = months.filter((item) => item.startsWith(`${nextYear}-`)).map((item) => item.slice(5, 7))
+          const available = validMonths.filter((item) => item.startsWith(`${nextYear}-`)).map((item) => item.slice(5, 7))
           if (!available.includes(mon) && available[0]) setMon(available[0])
         }}
       >
         {years.map((item) => (
-          <option key={item} value={item} className="text-ink">{item}年</option>
+          <option key={item} value={item}>{item}年</option>
         ))}
       </select>
       <select
         aria-label="月份"
-        className="num rounded-md border border-line bg-card px-3 py-2 text-base text-ink"
+        className="num min-w-24 rounded-md border border-line bg-card px-3 py-2 text-base text-ink"
         value={selectedMon}
         onChange={(event) => setMon(event.target.value)}
       >
         {monthOptions.map((item) => (
-          <option key={item} value={item} className="text-ink">{Number(item)}月</option>
+          <option key={item} value={item}>{Number(item)}月</option>
         ))}
       </select>
       <button
+        type="button"
         className="rounded-md bg-pine px-3 py-2 text-sm font-medium text-white"
-        onClick={() => onConfirm(`${year}-${selectedMon}`)}
+        onClick={() => onConfirm(`${selectedYear}-${selectedMon}`)}
       >
         确认
       </button>
@@ -635,7 +631,7 @@ function MonthPicker({ month, months, onConfirm }: { month: string; months: stri
 }
 
 const NOTE_PREFIX = "ctia-board-note:"
-const NOTE_VERSION = "ctia-board-note:v2:"
+const NOTE_VERSION = "ctia-board-note:v3:"
 
 function dropLegacyBoardNotes() {
   const drop: string[] = []
@@ -650,20 +646,51 @@ if (typeof window !== "undefined") dropLegacyBoardNotes()
 
 function Summary({ month, tab, text }: { month: string; tab: string; text: string }) {
   const storageKey = `${NOTE_VERSION}${tab}:${month}`
-  const read = (generated: string) => resolveSummary(window.localStorage.getItem(storageKey), generated)
-  const [state, setState] = useState({ key: storageKey, base: text, value: read(text) })
-  if (state.key !== storageKey || state.base !== text) setState({ key: storageKey, base: text, value: read(text) })
+  const stored = resolveSummary(window.localStorage.getItem(storageKey), text)
+  const confirmed = window.localStorage.getItem(storageKey) ? stored : null
+  const [state, setState] = useState({
+    key: storageKey,
+    generated: text,
+    draft: confirmed ?? text,
+    saved: confirmed ?? text,
+    custom: confirmed !== null,
+  })
+  if (state.key !== storageKey) {
+    const nextStored = resolveSummary(window.localStorage.getItem(storageKey), text)
+    const nextConfirmed = window.localStorage.getItem(storageKey) ? nextStored : null
+    setState({
+      key: storageKey,
+      generated: text,
+      draft: nextConfirmed ?? text,
+      saved: nextConfirmed ?? text,
+      custom: nextConfirmed !== null,
+    })
+  } else if (!state.custom && state.generated !== text) {
+    setState({ ...state, generated: text, draft: text, saved: text })
+  }
+  const dirty = state.draft !== state.saved
   return (
-    <textarea
-      aria-label={`${tab}总结`}
-      className="min-h-32 w-full resize-y rounded-2xl border border-line bg-card px-4 py-3 text-sm leading-7"
-      value={state.value}
-      onChange={(event) => {
-        const value = event.target.value
-        window.localStorage.setItem(storageKey, JSON.stringify({ text: value, base: text }))
-        setState({ key: storageKey, base: text, value })
-      }}
-    />
+    <div>
+      <textarea
+        aria-label={`${tab}总结`}
+        className="min-h-32 w-full resize-y rounded-2xl border border-line bg-card px-4 py-3 text-sm leading-7"
+        value={state.draft}
+        onChange={(event) => setState({ ...state, draft: event.target.value, custom: true })}
+      />
+      <div className="mt-2 flex justify-end">
+        <button
+          type="button"
+          className="rounded-md bg-pine px-3 py-2 text-sm font-medium text-white disabled:opacity-40"
+          disabled={!dirty}
+          onClick={() => {
+            window.localStorage.setItem(storageKey, JSON.stringify({ text: state.draft }))
+            setState({ ...state, saved: state.draft, custom: true })
+          }}
+        >
+          确定
+        </button>
+      </div>
+    </div>
   )
 }
 

@@ -5,10 +5,28 @@ import { parseListBuffer, type RawRow } from "./lib/parseList"
 import { parseSalesReport, type ReportMonth } from "./lib/parseSalesReport"
 import { parseSocial, type SocialBlock } from "./lib/parseSocial"
 import { parseSupplement, type SupplementMonth } from "./lib/parseSupplement"
-import { DEFAULT_RULES, loadRules, saveRules, type RulesConfig } from "./lib/rules"
+import { loadRules, saveRules, type RulesConfig } from "./lib/rules"
 import { SLOTS } from "./lib/slots"
 import { applyStaged, detectConflicts, metricsFromReport, metricsFromSocial, metricsFromSupplement, type Conflict, type StagedFile } from "./lib/staging"
 import { buildView, type FileChip } from "./lib/view"
+
+const DISMISSED_KEY = "ctia-dismissed-samples"
+
+function readDismissed(): Set<string> {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(DISMISSED_KEY) ?? "[]") as unknown
+    if (!Array.isArray(parsed)) return new Set()
+    return new Set(parsed.filter((item): item is string => typeof item === "string"))
+  } catch {
+    return new Set()
+  }
+}
+
+function dismissSlot(slot: string) {
+  const next = readDismissed()
+  next.add(slot)
+  localStorage.setItem(DISMISSED_KEY, JSON.stringify([...next]))
+}
 
 const SAMPLES = [
   {
@@ -148,7 +166,9 @@ export default function App() {
           warnings: [] as string[],
           files: [] as FileChip[],
         }
+        const dismissed = readDismissed()
         for (const sample of SAMPLES) {
+          if (dismissed.has(sample.slot)) continue
           const response = await fetch(sample.path)
           if (!response.ok) throw new Error(sample.path)
           if (cancelled) return
@@ -231,7 +251,6 @@ export default function App() {
       confirming={confirming}
       onMonth={setMonth}
       onRules={updateRules}
-      onResetRules={() => updateRules(DEFAULT_RULES)}
       onStage={async (slot, file) => {
         const next = await stageFile(slot, file)
         setStaged((current) => [...current, next])
@@ -244,6 +263,7 @@ export default function App() {
       onChoose={(conflictId, optionId) => setChoices((current) => ({ ...current, [conflictId]: optionId }))}
       onSubmit={submitStaged}
       onClear={(slot) => {
+        dismissSlot(slot)
         setRows((current) => current.filter((row) => row.slot !== slot))
         if (slot === "sales") setReport({})
         if (slot === "supplement") setSupplement({})

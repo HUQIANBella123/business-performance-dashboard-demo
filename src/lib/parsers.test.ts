@@ -93,9 +93,9 @@ describe("supplement and social", () => {
     const parsed = parseSocial(bufferOf(social))
     const official = parsed.blocks.find((block) => block.title.includes("官方"))
     const wechat = parsed.blocks.find((block) => block.title.includes("微信"))
-    expect(official?.series["發送篇數"]["2026-02"]).toBe(2)
-    expect(wechat?.series["發送篇數"]["2026-02"]).toBe(2)
-    expect(wechat?.series["閱讀量"]["2026-02"]).toBe(775)
+    expect(official?.series["发送篇数"]["2026-02"]).toBe(2)
+    expect(wechat?.series["发送篇数"]["2026-02"]).toBe(2)
+    expect(wechat?.series["阅读量"]["2026-02"]).toBe(775)
   })
 })
 

@@ -187,10 +187,10 @@ export function renewalNarrative(input: NarrativeInput): string {
 export function resolveSummary(stored: string | null, generated: string): string {
   if (!stored) return generated
   try {
-    const saved = JSON.parse(stored) as { text?: unknown; base?: unknown }
-    if (saved.base === generated && typeof saved.text === "string") return saved.text
+    const saved = JSON.parse(stored) as { text?: unknown }
+    if (typeof saved.text === "string") return saved.text
   } catch {
-    // Plain text left by an older build belongs to the previous dataset.
+    return generated
   }
   return generated
 }
